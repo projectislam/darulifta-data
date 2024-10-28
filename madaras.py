@@ -1,8 +1,12 @@
 from bs4 import BeautifulSoup
 import csv
 
+# Define paths for input and output files
+input_path = "./madaras/madaras.html"
+output_path = "./madaras/madaras.csv"
+
 # Read the HTML file
-with open("madaras.html", "r", encoding="utf-8") as file:
+with open(input_path, "r", encoding="utf-8") as file:
     content = file.read()
 
 # Parse the HTML content
@@ -23,8 +27,8 @@ for link in links:
     
     data.append([title, url, count])
 
-# Write data to 'madaras.csv'
-with open("madaras.csv", "w", newline="", encoding="utf-8") as csvfile:
+# Write data to './madaras/madaras.csv'
+with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(["Title", "Link", "Count"])  # Header row
     writer.writerows(data)
