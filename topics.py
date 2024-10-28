@@ -20,10 +20,9 @@ def get_soup(url, retries=3):
     print(f"Failed to fetch URL {url} after {retries} attempts.")
     return None
 
-def extract_topics(url):
-    topics = []
+def extract_topics(url, parent=None):
     visited_links = set()
-    queue = [(url, None)]
+    queue = [(url, parent)]  # Track each URL with its parent reference
 
     while queue:
         current_url, parent = queue.pop(0)
@@ -32,13 +31,17 @@ def extract_topics(url):
         visited_links.add(current_url)
         
         print(f"Visiting: {current_url}")
-        soup = get_soup(current_url)
+        soup = get_soup(current_url, retries=3)
         if not soup:
+            print(f"Skipping {current_url} after multiple failed attempts.")
+            if parent:
+                parent[-1]["is_end"] = True
             continue
 
         ul = soup.select_one("body > div > section.bg-gray-50 > div > div.col-span-2 > div > ul") or \
              soup.select_one("body > div > main > div > ul")
 
+        current_topics = []  # This will hold the child topics for the current URL
         if ul:
             for li in ul.find_all("li"):
                 a = li.find("a")
@@ -47,23 +50,34 @@ def extract_topics(url):
                     topic_url = a['href']
                     if not topic_url.startswith("http"):
                         topic_url = requests.compat.urljoin(current_url, topic_url)
-                    
+
+                    # Create the topic structure
                     topic = {
                         "title": title,
                         "url": topic_url,
                         "child": []
                     }
-                    (parent or topics).append(topic)
+
+                    # Append the topic as a child of the current topic
+                    current_topics.append(topic)
+
+                    # Add the topic URL to the queue with a reference to its child list
                     queue.append((topic_url, topic["child"]))
+            
+            # Add collected topics as children of the parent topic
+            if parent is not None:
+                parent[-1]["child"] = current_topics
+            else:
+                parent = current_topics  # Root-level topics
         else:
-            # Ensure parent is a non-empty list before marking "is_end"
+            # If no child topics found, mark as `is_end`
             if parent:
                 parent[-1]["is_end"] = True
                 print(f"No subtopics found for {current_url}, marking as end.")
 
-        sleep(1)  # To avoid overloading the server
+        # sleep(3)
 
-    return topics
+    return parent  # Return the entire topic structure
 
 def process_csv():
     with open("./madaras/madaras.csv", "r", encoding="utf-8") as csvfile:
